@@ -34,15 +34,16 @@ import androidx.compose.ui.window.Dialog
 import com.saveeditor.archmageidle.data.isValidJsonNumber
 
 /**
- * A search-and-pick dialog for choosing an item ID. Since save files only carry
- * numeric IDs (the game owns the real name database, which isn't available to
- * this app), every entry can be labeled with a user-defined nickname right in
- * this list — labeled once, remembered forever, searchable from then on.
+ * A search-and-pick dialog for choosing an item ID. Most entries already have
+ * a real name (extracted from the game's own client code); anything without
+ * one can be given a local nickname right in this list — labeled once,
+ * remembered forever, searchable from then on.
  */
 @Composable
 fun ItemPickerDialog(
     title: String,
     knownIds: List<String>,
+    knownNames: Map<String, String>,
     nicknames: SnapshotStateMap<String, String>,
     onSetNickname: (id: String, nickname: String) -> Unit,
     onSelect: (id: String) -> Unit,
@@ -56,7 +57,9 @@ fun ItemPickerDialog(
         val sorted = knownIds.distinct().sortedBy { it.toLongOrNull() ?: Long.MAX_VALUE }
         if (q.isBlank()) sorted
         else sorted.filter { id ->
-            id.lowercase().contains(q) || (nicknames[id]?.lowercase()?.contains(q) == true)
+            id.lowercase().contains(q) ||
+                (nicknames[id]?.lowercase()?.contains(q) == true) ||
+                (knownNames[id]?.lowercase()?.contains(q) == true)
         }
     }
 
@@ -68,7 +71,7 @@ fun ItemPickerDialog(
             Column(Modifier.padding(16.dp).height(520.dp)) {
                 Text(title, style = MaterialTheme.typography.titleMedium)
                 Text(
-                    "Give an item a nickname so it's easy to find next time. Nicknames are saved on this device only.",
+                    "Items without a known name can be given a local nickname so they're easy to find next time.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 4.dp, bottom = 8.dp)
@@ -91,7 +94,7 @@ fun ItemPickerDialog(
                             OutlinedTextField(
                                 value = nicknames[id] ?: "",
                                 onValueChange = { onSetNickname(id, it) },
-                                placeholder = { Text("Item #$id") },
+                                placeholder = { Text(knownNames[id] ?: "Item #$id") },
                                 singleLine = true,
                                 modifier = Modifier.weight(1f)
                             )

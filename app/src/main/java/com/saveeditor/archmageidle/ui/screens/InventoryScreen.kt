@@ -68,7 +68,8 @@ fun InventoryScreen(modifier: Modifier = Modifier, viewModel: SaveViewModel, ite
     var query by remember { mutableStateOf("") }
     val filtered = if (query.isBlank()) rows else rows.filter { row ->
         row.itemId.contains(query.trim()) ||
-            (itemNames.nicknames[row.itemId]?.contains(query.trim(), ignoreCase = true) == true)
+            (itemNames.nicknames[row.itemId]?.contains(query.trim(), ignoreCase = true) == true) ||
+            (itemNames.knownNames[row.itemId]?.contains(query.trim(), ignoreCase = true) == true)
     }
 
     // null = picker closed; -1 = picking an item to add as a new row; >=0 = picking a
@@ -186,10 +187,11 @@ fun InventoryScreen(modifier: Modifier = Modifier, viewModel: SaveViewModel, ite
 
     val targetIndex = pickerTargetIndex
     if (targetIndex != null) {
-        val knownIds = (rows.map { it.itemId } + itemNames.nicknames.keys).distinct()
+        val knownIds = (rows.map { it.itemId } + itemNames.nicknames.keys + itemNames.knownNames.keys).distinct()
         ItemPickerDialog(
             title = if (targetIndex == -1) "Add Item" else "Rename or Change Item",
             knownIds = knownIds,
+            knownNames = itemNames.knownNames,
             nicknames = itemNames.nicknames,
             onSetNickname = { id, nickname -> itemNames.setNickname(id, nickname) },
             onSelect = { selectedId ->

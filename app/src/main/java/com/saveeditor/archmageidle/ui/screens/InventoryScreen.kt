@@ -102,11 +102,14 @@ fun InventoryScreen(modifier: Modifier = Modifier, viewModel: SaveViewModel, ite
             }
             Button(
                 onClick = {
-                    for (i in rows.indices) rows[i] = rows[i].copy(quantity = "10000")
+                    for (i in rows.indices) {
+                        val current = rows[i].quantity.toLongOrNull() ?: 0L
+                        rows[i] = rows[i].copy(quantity = (current + 10000L).toString())
+                    }
                 },
                 modifier = Modifier.weight(1f)
             ) {
-                Text("Give 10000 of All")
+                Text("+10000 to All")
             }
         }
 

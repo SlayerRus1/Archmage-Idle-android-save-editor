@@ -59,4 +59,6 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.4")
 
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.1")
+
+    testImplementation("junit:junit:4.13.2")
 }

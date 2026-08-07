@@ -86,16 +86,32 @@ private val NUMBER_REGEX = Regex("""^-?\d+(\.\d+)?([eE][+-]?\d+)?$""")
 fun isValidJsonNumber(text: String): Boolean = NUMBER_REGEX.matches(text.trim())
 
 /**
- * Builds a JsonPrimitive number from raw user-entered text, preserving exact
- * formatting where possible (important for very large idle-game currency values).
+ * Builds a JsonPrimitive number from raw user-entered text, preserving the
+ * exact text the user typed.
+ *
+ * This deliberately does NOT go through `JsonPrimitive(Long)`/`JsonPrimitive(Double)`
+ * for values that fit: Kotlin's `Double.toString()` switches to scientific
+ * notation outside a narrow magnitude range (e.g. "55726369.40152065" becomes
+ * "5.572636940152065E7") and loses precision beyond ~15-17 significant digits
+ * for large integers — both confirmed against real save data. Since callers
+ * only invoke this after `isValidJsonNumber` has already confirmed [text] is
+ * syntactically a valid JSON number, we can always emit it as a literal
+ * unquoted number and get byte-for-byte fidelity with zero reformatting risk.
+ * `toDoubleOrNull()` is used only to reject non-finite results (there are none
+ * reachable through the regex, but this keeps the function safe standalone).
  */
 @OptIn(ExperimentalSerializationApi::class)
 fun numberToJsonPrimitive(text: String): JsonPrimitive {
     val t = text.trim()
-    t.toLongOrNull()?.let { return JsonPrimitive(it) }
-    t.toDoubleOrNull()?.let { return JsonPrimitive(it) }
-    // Fallback: preserve arbitrary-precision numeric text verbatim (e.g. huge integers).
-    return JsonUnquotedLiteral(t)
+    val asDouble = t.toDoubleOrNull()
+    return if (asDouble != null && asDouble.isFinite()) {
+        JsonUnquotedLiteral(t)
+    } else {
+        // Not a recognizable number at all (shouldn't happen given callers
+        // validate first) — fall back to a safe default rather than emitting
+        // invalid JSON.
+        JsonPrimitive(0L)
+    }
 }
 
 fun boolToJsonPrimitive(b: Boolean): JsonPrimitive = JsonPrimitive(b)
@@ -107,4 +123,87 @@ fun JsonObject.withFields(vararg fields: Pair<String, JsonElement>): JsonObject 
     val updated = LinkedHashMap(this)
     fields.forEach { (k, v) -> updated[k] = v }
     return JsonObject(updated)
+}
+
+// ---- Verbatim pretty-printing ---------------------------------------------------
+
+/**
+ * Serializes this element to indented JSON text, writing every [JsonPrimitive]'s
+ * `content` byte-for-byte instead of round-tripping it through a parsed Double/Long.
+ *
+ * This matters because kotlinx.serialization's own `Json.encodeToString` does NOT
+ * preserve original number formatting: it re-renders every numeric primitive via
+ * Kotlin's `Double.toString()`, which switches to scientific notation outside a
+ * narrow magnitude range (e.g. "55726369.40152065" becomes "5.572636940152065E7",
+ * and "0.0005" becomes "5.0E-4"). For a save-file editor that must round-trip
+ * fields the user never touched, that's silent data corruption — confirmed by
+ * exact-content diffing against a real save file. Hence this hand-written writer.
+ */
+fun JsonElement.toPrettyJsonString(indent: String = "  "): String {
+    val sb = StringBuilder()
+    writeJsonElement(this, sb, indent, 0)
+    return sb.toString()
+}
+
+private fun writeJsonElement(element: JsonElement, sb: StringBuilder, indent: String, depth: Int) {
+    when (element) {
+        is JsonNull -> sb.append("null")
+        is JsonObject -> writeJsonObject(element, sb, indent, depth)
+        is JsonArray -> writeJsonArray(element, sb, indent, depth)
+        is JsonPrimitive -> {
+            if (element.isString) writeJsonString(element.content, sb) else sb.append(element.content)
+        }
+    }
+}
+
+private fun writeJsonObject(obj: JsonObject, sb: StringBuilder, indent: String, depth: Int) {
+    if (obj.isEmpty()) {
+        sb.append("{}")
+        return
+    }
+    sb.append("{\n")
+    val childIndent = indent.repeat(depth + 1)
+    val entries = obj.entries.toList()
+    for ((i, entry) in entries.withIndex()) {
+        sb.append(childIndent)
+        writeJsonString(entry.key, sb)
+        sb.append(": ")
+        writeJsonElement(entry.value, sb, indent, depth + 1)
+        if (i != entries.lastIndex) sb.append(',')
+        sb.append('\n')
+    }
+    sb.append(indent.repeat(depth)).append('}')
+}
+
+private fun writeJsonArray(arr: JsonArray, sb: StringBuilder, indent: String, depth: Int) {
+    if (arr.isEmpty()) {
+        sb.append("[]")
+        return
+    }
+    sb.append("[\n")
+    val childIndent = indent.repeat(depth + 1)
+    for ((i, item) in arr.withIndex()) {
+        sb.append(childIndent)
+        writeJsonElement(item, sb, indent, depth + 1)
+        if (i != arr.lastIndex) sb.append(',')
+        sb.append('\n')
+    }
+    sb.append(indent.repeat(depth)).append(']')
+}
+
+private fun writeJsonString(s: String, sb: StringBuilder) {
+    sb.append('"')
+    for (ch in s) {
+        when (ch) {
+            '"' -> sb.append("\\\"")
+            '\\' -> sb.append("\\\\")
+            '\n' -> sb.append("\\n")
+            '\r' -> sb.append("\\r")
+            '\t' -> sb.append("\\t")
+            '\b' -> sb.append("\\b")
+            '\u000C' -> sb.append("\\f")
+            else -> if (ch < ' ') sb.append("\\u%04x".format(ch.code)) else sb.append(ch)
+        }
+    }
+    sb.append('"')
 }

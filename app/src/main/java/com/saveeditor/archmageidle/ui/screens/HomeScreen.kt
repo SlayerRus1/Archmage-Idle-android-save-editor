@@ -11,7 +11,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -24,15 +23,16 @@ fun HomeScreen(
     modifier: Modifier = Modifier,
     viewModel: SaveViewModel,
     onOpenFile: () -> Unit,
-    onContinueToEditor: () -> Unit,
 ) {
+    // Navigation to the editor happens as a direct, one-shot consequence of a
+    // successful load (see MainActivity's onPickOpenFile callback) rather than
+    // as a reactive effect watching loadState here. loadState stays "Loaded"
+    // indefinitely once a file is open, and this screen gets torn down and
+    // recreated fresh every time it's navigated back to (the navigation stack
+    // swaps composables rather than hiding them) — a state-driven effect would
+    // instantly re-fire and bounce the user straight back to the editor,
+    // making it impossible to ever reach Home again to open a different file.
     val state = viewModel.loadState
-
-    LaunchedEffect(state) {
-        if (state is LoadState.Loaded) {
-            onContinueToEditor()
-        }
-    }
 
     Column(
         modifier = modifier

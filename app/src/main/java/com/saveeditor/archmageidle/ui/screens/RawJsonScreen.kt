@@ -19,18 +19,17 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.saveeditor.archmageidle.data.SaveViewModel
+import com.saveeditor.archmageidle.data.toPrettyJsonString
 import com.saveeditor.archmageidle.ui.components.SectionHeader
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
-
-private val prettyJson = Json { prettyPrint = true; prettyPrintIndent = "  " }
 
 @Composable
 fun RawJsonScreen(modifier: Modifier = Modifier, viewModel: SaveViewModel) {
     val root = viewModel.root ?: return
 
     var text by remember(root) {
-        mutableStateOf(prettyJson.encodeToString(JsonObject.serializer(), root))
+        mutableStateOf(root.toPrettyJsonString())
     }
     var error by remember { mutableStateOf<String?>(null) }
 

@@ -13,11 +13,6 @@ import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.io.OutputStreamWriter
 
-private val prettyJson = Json {
-    prettyPrint = true
-    prettyPrintIndent = "  "
-}
-
 sealed class LoadState {
     object Empty : LoadState()
     object Loading : LoadState()
@@ -38,7 +33,8 @@ class SaveViewModel : ViewModel() {
 
     var statusMessage by mutableStateOf<String?>(null)
 
-    fun loadFrom(resolver: ContentResolver, uri: Uri) {
+    /** Returns true if the file loaded successfully. */
+    fun loadFrom(resolver: ContentResolver, uri: Uri): Boolean {
         loadState = LoadState.Loading
         try {
             val rawText = resolver.openInputStream(uri)?.use { input ->
@@ -55,8 +51,10 @@ class SaveViewModel : ViewModel() {
             val name = queryDisplayName(resolver, uri) ?: "save.txt"
             loadState = LoadState.Loaded(name)
             statusMessage = "Loaded $name"
+            return true
         } catch (e: Exception) {
             loadState = LoadState.Error(e.message ?: "Unknown error while loading the save file.")
+            return false
         }
     }
 
@@ -65,10 +63,18 @@ class SaveViewModel : ViewModel() {
         dirty = true
     }
 
+    /** Clears all state so the user can return to Home and open a different file. */
+    fun reset() {
+        loadState = LoadState.Empty
+        root = null
+        dirty = false
+        statusMessage = null
+    }
+
     fun saveTo(resolver: ContentResolver, uri: Uri) {
         val current = root ?: return
         try {
-            val jsonText = prettyJson.encodeToString(JsonObject.serializer(), current)
+            val jsonText = current.toPrettyJsonString()
             val encrypted = SaveCipher.encrypt(jsonText)
             resolver.openOutputStream(uri, "wt")?.use { out ->
                 OutputStreamWriter(out, Charsets.UTF_8).use { it.write(encrypted) }

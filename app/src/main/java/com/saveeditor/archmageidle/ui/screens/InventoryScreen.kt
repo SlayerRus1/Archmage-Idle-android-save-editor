@@ -44,7 +44,14 @@ import com.saveeditor.archmageidle.ui.components.SectionHeader
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.jsonPrimitive
 
-private data class InventoryRow(var itemId: String, var quantity: String, var extra: String)
+// `key` is a stable per-row identity, distinct from the editable fields. Without it,
+// two rows that happen to end up with identical (itemId, quantity, extra) — e.g. the
+// same item added twice via the picker — would be indistinguishable to rows.indexOf(),
+// silently redirecting edits/deletes on one to whichever matching row comes first.
+private data class InventoryRow(val key: Int, var itemId: String, var quantity: String, var extra: String)
+
+private var nextInventoryRowKey = 0
+private fun newInventoryRowKey(): Int = nextInventoryRowKey++
 
 @Composable
 fun InventoryScreen(modifier: Modifier = Modifier, viewModel: SaveViewModel, itemNames: ItemNameRepository) {
@@ -57,6 +64,7 @@ fun InventoryScreen(modifier: Modifier = Modifier, viewModel: SaveViewModel, ite
             val tuple = entry as? JsonArray ?: return@mapNotNull null
             if (tuple.size < 2) return@mapNotNull null
             InventoryRow(
+                key = newInventoryRowKey(),
                 itemId = tuple[0].jsonPrimitive.content,
                 quantity = tuple[1].jsonPrimitive.content,
                 extra = if (tuple.size >= 3) tuple[2].jsonPrimitive.content else ""
@@ -115,9 +123,8 @@ fun InventoryScreen(modifier: Modifier = Modifier, viewModel: SaveViewModel, ite
         }
 
         LazyColumn(modifier = Modifier.weight(1f)) {
-            items(filtered.size) { i ->
-                val row = filtered[i]
-                val realIndex = rows.indexOf(row)
+            items(filtered, key = { it.key }) { row ->
+                val realIndex = rows.indexOfFirst { it.key == row.key }
                 Card(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp)) {
                     Column(Modifier.fillMaxWidth().padding(8.dp)) {
                         Row(
@@ -196,7 +203,7 @@ fun InventoryScreen(modifier: Modifier = Modifier, viewModel: SaveViewModel, ite
             onSetNickname = { id, nickname -> itemNames.setNickname(id, nickname) },
             onSelect = { selectedId ->
                 if (targetIndex == -1) {
-                    rows.add(InventoryRow(selectedId, "0", ""))
+                    rows.add(InventoryRow(newInventoryRowKey(), selectedId, "0", ""))
                 } else {
                     rows[targetIndex] = rows[targetIndex].copy(itemId = selectedId)
                 }

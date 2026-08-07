@@ -13,6 +13,7 @@ import com.saveeditor.archmageidle.data.ItemNameRepository
 import com.saveeditor.archmageidle.data.SaveViewModel
 import com.saveeditor.archmageidle.ui.AppRoot
 import com.saveeditor.archmageidle.ui.NavController
+import com.saveeditor.archmageidle.ui.Screen
 import com.saveeditor.archmageidle.ui.theme.ArchmageSaveEditorTheme
 
 class MainActivity : ComponentActivity() {
@@ -58,7 +59,9 @@ class MainActivity : ComponentActivity() {
                     onPickOpenFile = {
                         pendingOpenCallback = { uri ->
                             savedAsUri.value = uri
-                            viewModel.loadFrom(contentResolver, uri)
+                            if (viewModel.loadFrom(contentResolver, uri)) {
+                                navController.push(Screen.EditorHub)
+                            }
                         }
                         openDocumentLauncher.launch(arrayOf("text/plain", "application/octet-stream", "*/*"))
                     },

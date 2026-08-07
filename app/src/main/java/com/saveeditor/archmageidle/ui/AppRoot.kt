@@ -17,6 +17,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import com.saveeditor.archmageidle.data.ItemNameRepository
 import com.saveeditor.archmageidle.data.LoadState
 import com.saveeditor.archmageidle.data.SaveViewModel
 import com.saveeditor.archmageidle.ui.screens.ChronomancyScreen
@@ -37,6 +38,7 @@ import com.saveeditor.archmageidle.ui.screens.SkillsScreen
 fun AppRoot(
     viewModel: SaveViewModel,
     navController: NavController,
+    itemNames: ItemNameRepository,
     onPickOpenFile: () -> Unit,
     onSave: () -> Unit,
     onSaveAs: () -> Unit,
@@ -93,7 +95,7 @@ fun AppRoot(
             Screen.Player -> PlayerScreen(modifier, viewModel)
             Screen.Resources -> ResourcesScreen(modifier, viewModel)
             Screen.Skills -> SkillsScreen(modifier, viewModel)
-            Screen.Inventory -> InventoryScreen(modifier, viewModel)
+            Screen.Inventory -> InventoryScreen(modifier, viewModel, itemNames)
             Screen.Shop -> ShopScreen(modifier, viewModel)
             Screen.ConceptUpgrades -> ConceptUpgradesScreen(modifier, viewModel)
             Screen.Elixirs -> ElixirsScreen(modifier, viewModel)

@@ -9,6 +9,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.saveeditor.archmageidle.data.ItemNameRepository
 import com.saveeditor.archmageidle.data.SaveViewModel
 import com.saveeditor.archmageidle.ui.AppRoot
 import com.saveeditor.archmageidle.ui.NavController
@@ -48,10 +49,12 @@ class MainActivity : ComponentActivity() {
                 val viewModel: SaveViewModel = viewModel()
                 val navController = remember { NavController() }
                 val savedAsUri = remember { mutableStateOf<Uri?>(null) }
+                val itemNames = remember { ItemNameRepository(applicationContext) }
 
                 AppRoot(
                     viewModel = viewModel,
                     navController = navController,
+                    itemNames = itemNames,
                     onPickOpenFile = {
                         pendingOpenCallback = { uri ->
                             savedAsUri.value = uri
